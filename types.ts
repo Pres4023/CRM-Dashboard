@@ -13,6 +13,19 @@ export enum InventoryType {
   CYCLICAL = 'CYCLICAL'
 }
 
+export interface BusinessConfig {
+  name: string;
+  slogan: string;
+  logo: string;
+  taxId: string;
+  currency: string;
+  taxPercentage: number;
+  address: string;
+  phone: string;
+  email: string;
+  quotationFooter: string;
+}
+
 export interface Product {
   id: string;
   sku: string;

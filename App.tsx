@@ -15,21 +15,22 @@ import {
   FileText,
   Bell,
   Sparkles,
-  // Fix: Added missing icons used in the inventory table and AI insights panel.
   MapPin,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Settings
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { Scanner } from './components/Scanner';
 import { UserManagement } from './components/UserManagement';
 import { QuotationManager } from './components/QuotationManager';
-import { Product, User, UserRole, InventoryType } from './types';
+import { SystemConfig } from './components/SystemConfig';
+import { Product, User, UserRole, InventoryType, BusinessConfig } from './types';
 import { getInventoryInsights } from './services/geminiService';
 import { dbService } from './services/dbService';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'counts' | 'admin' | 'quotations'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'counts' | 'admin' | 'quotations' | 'settings'>('dashboard');
   const [products, setProducts] = useState<Product[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [aiInsights, setAiInsights] = useState<any>(null);
@@ -38,6 +39,7 @@ const App: React.FC = () => {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [countSession, setCountSession] = useState<{ active: boolean; type: InventoryType; progress: Record<string, number> } | null>(null);
+  const [bizConfig, setBizConfig] = useState<BusinessConfig | null>(null);
 
   const currentUser: User = {
     id: 'u1',
@@ -49,9 +51,13 @@ const App: React.FC = () => {
 
   const loadData = async () => {
     setIsLoadingProducts(true);
-    const result = await dbService.getProducts();
-    setProducts(result.data);
-    setIsDemoMode(result.isDemo);
+    const [productsResult, configResult] = await Promise.all([
+      dbService.getProducts(),
+      dbService.getConfig()
+    ]);
+    setProducts(productsResult.data);
+    setIsDemoMode(productsResult.isDemo);
+    setBizConfig(configResult);
     setIsLoadingProducts(false);
   };
 
@@ -79,7 +85,7 @@ const App: React.FC = () => {
         progress: { ...prev!.progress, [product.id]: (prev!.progress[product.id] || 0) + 1 }
       }));
     } else if (product) {
-      alert(`Nexus Detectó: ${product.name}\nStock: ${product.stock}\nUbicación: ${product.location}`);
+      alert(`Detectado: ${product.name}\nStock: ${product.stock}\nUbicación: ${product.location}`);
     } else {
       alert(`Código ${code} no registrado.`);
     }
@@ -92,20 +98,26 @@ const App: React.FC = () => {
     loadData();
   };
 
+  if (!bizConfig) return null;
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       {/* Sidebar - Desktop */}
       <aside className="w-80 bg-white border-r border-slate-200 flex flex-col hidden lg:flex shadow-2xl z-30 no-print">
         <div className="p-8">
           <div className="flex items-center gap-3 mb-10">
-            <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-200">
-              <Cpu className="text-white w-7 h-7" />
+            <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-200 flex items-center justify-center overflow-hidden">
+              {bizConfig.logo ? (
+                <img src={bizConfig.logo} alt="Logo" className="w-8 h-8 object-contain brightness-0 invert" />
+              ) : (
+                <Cpu className="text-white w-7 h-7" />
+              )}
             </div>
-            <div>
-              <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-indigo-700 to-indigo-400 tracking-tighter">
-                NEXUS AI
+            <div className="overflow-hidden">
+              <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-indigo-700 to-indigo-400 tracking-tighter truncate block">
+                {bizConfig.name.split(' ')[0]} {bizConfig.name.split(' ')[1] || ''}
               </span>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] -mt-1">Inventory & CRM</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] -mt-1 truncate">{bizConfig.slogan}</p>
             </div>
           </div>
 
@@ -113,9 +125,10 @@ const App: React.FC = () => {
             {[
               { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
               { id: 'inventory', label: 'Stock Central', icon: Package, roles: null },
-              { id: 'quotations', label: 'Cotizador Real', icon: FileText, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.SELLER] },
+              { id: 'quotations', label: 'Cotizador Pro', icon: FileText, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.SELLER] },
               { id: 'counts', label: 'Auditoría Planta', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.WAREHOUSE, UserRole.MANAGER] },
-              { id: 'admin', label: 'Gestión Personal', icon: Users, roles: [UserRole.ADMIN] }
+              { id: 'admin', label: 'Personal', icon: Users, roles: [UserRole.ADMIN] },
+              { id: 'settings', label: 'Configuración', icon: Settings, roles: [UserRole.ADMIN] }
             ].map((item) => {
               if (item.roles && !item.roles.includes(currentUser.role)) return null;
               return (
@@ -147,7 +160,6 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Header Superior */}
         <header className="h-24 bg-white/70 backdrop-blur-2xl border-b border-slate-200 flex items-center justify-between px-10 sticky top-0 z-20 no-print">
           <div className="flex items-center gap-6 flex-1">
             <div className="relative w-full max-w-md">
@@ -200,20 +212,22 @@ const App: React.FC = () => {
                </div>
                <div className="text-center">
                  <p className="font-black text-slate-800 uppercase tracking-[0.4em] text-sm">Nexus AI</p>
-                 <p className="text-slate-400 text-xs mt-1">Sincronizando flujos de trabajo...</p>
+                 <p className="text-slate-400 text-xs mt-1">Sincronizando identidad corporativa...</p>
                </div>
             </div>
           ) : (
             <div className="h-full overflow-y-auto pb-32 px-10 pt-10 print:p-0 print:overflow-visible custom-scrollbar">
               {activeTab === 'dashboard' && <Dashboard products={products} movements={[]} />}
               {activeTab === 'quotations' && <QuotationManager products={products} userId={currentUser.id} />}
+              {activeTab === 'admin' && <UserManagement />}
+              {activeTab === 'settings' && <SystemConfig config={bizConfig} onUpdate={setBizConfig} />}
               
               {activeTab === 'inventory' && (
                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                       <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Stock Central</h2>
-                      <p className="text-slate-500">Monitoreo de existencias y valorización de almacén.</p>
+                      <p className="text-slate-500">Existencias valorizadas en {bizConfig.currency}.</p>
                     </div>
                   </div>
                   
@@ -224,7 +238,7 @@ const App: React.FC = () => {
                           <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Producto</th>
                           <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">SKU / Tag</th>
                           <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Categoría</th>
-                          <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Estado</th>
+                          <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Precio ({bizConfig.currency})</th>
                           <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Existencia</th>
                         </tr>
                       </thead>
@@ -245,15 +259,7 @@ const App: React.FC = () => {
                                <span className="text-sm font-medium text-slate-600">{p.category}</span>
                             </td>
                             <td className="px-10 py-7">
-                               {p.stock <= p.minStock ? (
-                                 <span className="inline-flex items-center gap-1.5 text-rose-600 font-bold text-xs uppercase bg-rose-50 px-3 py-1.5 rounded-full">
-                                   <Zap className="w-3 h-3" /> Crítico
-                                 </span>
-                               ) : (
-                                 <span className="inline-flex items-center gap-1.5 text-emerald-600 font-bold text-xs uppercase bg-emerald-50 px-3 py-1.5 rounded-full">
-                                   <Database className="w-3 h-3" /> Saludable
-                                 </span>
-                               )}
+                               <span className="font-bold text-slate-800">${p.price.toLocaleString()}</span>
                             </td>
                             <td className="px-10 py-7 text-right">
                               <p className="text-2xl font-black text-slate-900">{p.stock}</p>
@@ -272,7 +278,7 @@ const App: React.FC = () => {
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                       <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Auditoría Física</h2>
-                      <p className="text-slate-500">Sincroniza el inventario real con la base de datos central.</p>
+                      <p className="text-slate-500">Sincroniza el inventario real con {bizConfig.name}.</p>
                     </div>
                   </div>
                   
@@ -353,8 +359,6 @@ const App: React.FC = () => {
                   )}
                 </div>
               )}
-
-              {activeTab === 'admin' && <UserManagement />}
             </div>
           )}
         </div>
@@ -368,7 +372,7 @@ const App: React.FC = () => {
                 <h3 className="font-black text-xl tracking-tighter">Nexus Intelligence</h3>
               </div>
               <button onClick={() => setShowAiPanel(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                <LayoutDashboard className="w-5 h-5 text-slate-400" />
+                <Settings className="w-5 h-5 text-slate-400" />
               </button>
             </div>
             
@@ -428,3 +432,22 @@ const App: React.FC = () => {
 
         {isScannerOpen && (
           <Scanner 
+            onScan={handleScanResult} 
+            onClose={() => setIsScannerOpen(false)} 
+          />
+        )}
+      </main>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        @media print {
+          .no-print { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;

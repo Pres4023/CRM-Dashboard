@@ -1,7 +1,20 @@
 
-import { Product, User, UserRole } from "../types";
+import { Product, User, UserRole, BusinessConfig } from "../types";
 
 const API_URL = 'api.php';
+
+const DEFAULT_CONFIG: BusinessConfig = {
+  name: 'Nexus AI Systems',
+  slogan: 'Inteligencia en cada movimiento',
+  logo: 'https://cdn-icons-png.flaticon.com/512/2103/2103633.png',
+  taxId: 'NEX-990101-AI1',
+  currency: 'MXN',
+  taxPercentage: 16,
+  address: 'Av. Innovación 500, Tech District, CDMX',
+  phone: '+52 55 1234 5678',
+  email: 'contacto@nexus-ai.com',
+  quotationFooter: 'Gracias por confiar en nuestra tecnología. Válido por 15 días.'
+};
 
 const MOCK_PRODUCTS: Product[] = [
   { id: '1', sku: 'NX-001', name: 'Laptop Pro 16', category: 'Electrónica', stock: 15, minStock: 5, price: 1200, location: 'Pasillo A-1', rfidTag: 'RFID-1001' },
@@ -11,6 +24,30 @@ const MOCK_PRODUCTS: Product[] = [
 ];
 
 export const dbService = {
+  async getConfig(): Promise<BusinessConfig> {
+    try {
+      const res = await fetch(`${API_URL}?action=get_config`);
+      if (!res.ok) throw new Error();
+      return await res.json();
+    } catch {
+      return JSON.parse(localStorage.getItem('nexus_config') || JSON.stringify(DEFAULT_CONFIG));
+    }
+  },
+
+  async saveConfig(config: BusinessConfig) {
+    try {
+      localStorage.setItem('nexus_config', JSON.stringify(config));
+      const res = await fetch(`${API_URL}?action=save_config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+      return await res.json();
+    } catch {
+      return { success: true };
+    }
+  },
+
   async getProducts(): Promise<{ data: Product[], isDemo: boolean }> {
     try {
       const res = await fetch(`${API_URL}?action=products`);
@@ -64,7 +101,7 @@ export const dbService = {
   async deleteUser(id: string) {
     try {
       const res = await fetch(`${API_URL}?action=delete_user&id=${id}`, {
-        method: 'POST', // Usamos POST para mayor compatibilidad con algunos hostings
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });

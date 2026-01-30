@@ -1,21 +1,20 @@
 
-import React, { useState, useMemo } from 'react';
-import { Product, QuotationItem } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Product, QuotationItem, BusinessConfig } from '../types';
 import { dbService } from '../services/dbService';
 import { 
   Plus, 
   Trash2, 
-  Send, 
   Printer, 
   MessageSquare, 
   User as UserIcon, 
   Phone, 
-  FileText,
   Search,
   ShoppingCart,
-  X,
   CreditCard,
-  Cpu
+  Cpu,
+  MapPin,
+  Mail
 } from 'lucide-react';
 
 interface QuotationManagerProps {
@@ -28,6 +27,11 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [bizConfig, setBizConfig] = useState<BusinessConfig | null>(null);
+
+  useEffect(() => {
+    dbService.getConfig().then(setBizConfig);
+  }, []);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -35,7 +39,8 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
   );
 
   const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.subtotal, 0), [items]);
-  const tax = subtotal * 0.16; // 16% IVA
+  const taxRate = bizConfig?.taxPercentage || 16;
+  const tax = subtotal * (taxRate / 100);
   const total = subtotal + tax;
 
   const addItem = (product: Product) => {
@@ -86,9 +91,9 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
   };
 
   const sendWhatsApp = () => {
-    const message = `Hola ${customer.name}, te envío la cotización de Nexus AI:%0A%0A` + 
+    const message = `Hola ${customer.name}, te envío la cotización de ${bizConfig?.name}:%0A%0A` + 
       items.map(i => `- ${i.productName} (${i.quantity} x $${i.unitPrice}) = $${i.subtotal}`).join('%0A') +
-      `%0A%0A*Total con IVA: $${total.toLocaleString()}*%0A%0AGracias por tu preferencia.`;
+      `%0A%0A*Total con IVA: $${total.toLocaleString()} ${bizConfig?.currency}*%0A%0AGracias por tu preferencia.`;
     
     const url = `https://wa.me/${customer.phone.replace(/\s+/g, '')}?text=${message}`;
     window.open(url, '_blank');
@@ -98,12 +103,14 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
     window.print();
   };
 
+  if (!bizConfig) return null;
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-8">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Nueva Cotización</h2>
-          <p className="text-slate-500">Crea propuestas comerciales profesionales en segundos.</p>
+          <p className="text-slate-500">Genera propuestas automáticas usando tu identidad corporativa.</p>
         </div>
         <div className="flex gap-3 no-print">
           <button 
@@ -124,7 +131,6 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Panel Izquierdo: Cliente y Buscador */}
         <div className="lg:col-span-1 space-y-6 no-print">
           <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
             <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
@@ -180,7 +186,7 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
                     <p className="text-[10px] text-slate-400 font-mono">{p.sku}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-indigo-600">${p.price}</p>
+                    <p className="font-black text-indigo-600">${p.price} {bizConfig.currency}</p>
                     <Plus className="w-4 h-4 text-indigo-300 ml-auto" />
                   </div>
                 </button>
@@ -189,53 +195,63 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
           </div>
         </div>
 
-        {/* Panel Derecho: Items de la Cotización (EL PDF) */}
         <div className="lg:col-span-2">
           <div id="print-area" className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl min-h-[600px] flex flex-col print:shadow-none print:border-none print:p-0">
-            {/* Header Cotización (PDF) */}
-            <div className="flex justify-between items-start mb-12">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  {/* Corrected: Added missing Cpu import above */}
-                  <Cpu className="w-8 h-8 text-indigo-600" />
-                  <span className="text-2xl font-black tracking-tighter text-indigo-900">NEXUS AI</span>
+            {/* Header Corporativo del PDF */}
+            <div className="flex justify-between items-start mb-12 border-b border-slate-50 pb-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  {bizConfig.logo ? (
+                    <img src={bizConfig.logo} alt="Logo" className="h-16 w-16 object-contain" />
+                  ) : (
+                    <Cpu className="w-12 h-12 text-indigo-600" />
+                  )}
+                  <div>
+                    <span className="text-2xl font-black tracking-tighter text-slate-900 block uppercase">{bizConfig.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{bizConfig.slogan}</span>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-slate-800">{customer.name || 'CLIENTE FINAL'}</p>
-                  <p className="text-xs text-slate-500 flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> {customer.phone || 'S/T'}
-                  </p>
+                <div className="text-[10px] text-slate-500 space-y-1">
+                   <p className="flex items-center gap-2"><MapPin className="w-3 h-3 text-indigo-400" /> {bizConfig.address}</p>
+                   <p className="flex items-center gap-2"><Phone className="w-3 h-3 text-indigo-400" /> {bizConfig.phone}</p>
+                   <p className="flex items-center gap-2"><Mail className="w-3 h-3 text-indigo-400" /> {bizConfig.email}</p>
+                   <p className="font-black text-slate-800 mt-2 uppercase">RFC/TAX ID: {bizConfig.taxId}</p>
                 </div>
               </div>
               <div className="text-right">
-                <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">COTIZACIÓN</h1>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">PROPUESA</h1>
                 <p className="text-xs font-mono text-slate-400 uppercase tracking-widest">Ref: #QT-{Date.now().toString().slice(-6)}</p>
                 <p className="text-xs text-slate-500 mt-1">{new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                
+                <div className="mt-8 text-right bg-slate-50 p-4 rounded-2xl">
+                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Dirigido a:</p>
+                   <p className="text-sm font-bold text-slate-800">{customer.name || 'CLIENTE FINAL'}</p>
+                   <p className="text-xs text-slate-500">{customer.phone}</p>
+                </div>
               </div>
             </div>
 
-            {/* Tabla Items */}
             <div className="flex-1">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b-2 border-slate-100">
                     <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Concepto</th>
                     <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Cant.</th>
-                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Precio Unit.</th>
-                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Subtotal</th>
+                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Unitario</th>
+                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
                     <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right no-print"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {items.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-20 text-center text-slate-300 font-medium">No se han agregado productos a la propuesta.</td>
+                      <td colSpan={5} className="py-20 text-center text-slate-300 font-medium italic">Seleccione productos del catálogo a la izquierda</td>
                     </tr>
                   ) : items.map(item => (
                     <tr key={item.id} className="group">
                       <td className="py-6">
                         <p className="font-bold text-slate-800">{item.productName}</p>
-                        <p className="text-[10px] text-slate-400">ID Prod: {item.productId.slice(0, 8)}</p>
+                        <p className="text-[10px] text-slate-400">SKU Ref: {item.productId.slice(0, 8)}</p>
                       </td>
                       <td className="py-6 text-center">
                         <div className="flex items-center justify-center gap-2 no-print">
@@ -258,26 +274,26 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
               </table>
             </div>
 
-            {/* Totales */}
             <div className="mt-12 pt-8 border-t-2 border-slate-100 flex flex-col items-end space-y-2">
-              <div className="flex justify-between w-64 text-sm">
+              <div className="flex justify-between w-72 text-sm">
                 <span className="text-slate-500 font-medium">Subtotal</span>
-                <span className="text-slate-800 font-bold">${subtotal.toLocaleString()}</span>
+                <span className="text-slate-800 font-bold">${subtotal.toLocaleString()} {bizConfig.currency}</span>
               </div>
-              <div className="flex justify-between w-64 text-sm">
-                <span className="text-slate-500 font-medium">IVA (16%)</span>
-                <span className="text-slate-800 font-bold">${tax.toLocaleString()}</span>
+              <div className="flex justify-between w-72 text-sm">
+                <span className="text-slate-500 font-medium">IVA ({bizConfig.taxPercentage}%)</span>
+                <span className="text-slate-800 font-bold">${tax.toLocaleString()} {bizConfig.currency}</span>
               </div>
-              <div className="flex justify-between w-64 pt-4 border-t border-slate-100">
-                <span className="text-indigo-600 font-black text-xl uppercase tracking-tighter">Total</span>
-                <span className="text-slate-900 font-black text-2xl">${total.toLocaleString()}</span>
+              <div className="flex justify-between w-72 pt-4 border-t border-slate-100">
+                <span className="text-indigo-600 font-black text-xl uppercase tracking-tighter">TOTAL NETO</span>
+                <span className="text-slate-900 font-black text-2xl">${total.toLocaleString()} {bizConfig.currency}</span>
               </div>
             </div>
 
-            {/* Footer PDF */}
-            <div className="mt-20 text-center space-y-2">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em]">Nexus AI Inventory Systems</p>
-              <p className="text-[10px] text-slate-300">Válido por 15 días naturales. Sujeto a cambios sin previo aviso.</p>
+            <div className="mt-20 text-center border-t border-slate-50 pt-8">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mb-4">Nexus AI Powered Document</p>
+              <div className="max-w-md mx-auto">
+                 <p className="text-[10px] text-slate-400 leading-relaxed italic">{bizConfig.quotationFooter}</p>
+              </div>
             </div>
           </div>
 
@@ -287,7 +303,7 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
               disabled={isProcessing || items.length === 0}
               className="flex items-center gap-3 bg-indigo-600 text-white px-10 py-4 rounded-[2rem] font-black shadow-2xl shadow-indigo-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
             >
-              <CreditCard className="w-5 h-5" /> {isProcessing ? 'Procesando...' : 'Finalizar y Guardar'}
+              <CreditCard className="w-5 h-5" /> {isProcessing ? 'Procesando...' : 'Guardar en Sistema'}
             </button>
           </div>
         </div>
@@ -300,12 +316,10 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({ products, us
           body { background: white !important; padding: 0 !important; }
           main { overflow: visible !important; }
           aside { display: none !important; }
+          #root { height: auto !important; }
           #print-area { border: none !important; padding: 0 !important; box-shadow: none !important; }
-          .custom-scrollbar { overflow: visible !important; }
         }
         .print-only { display: none; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       `}</style>
     </div>
   );
