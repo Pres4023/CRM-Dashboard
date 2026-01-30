@@ -2,7 +2,9 @@
 export enum UserRole {
   ADMIN = 'ADMIN',
   MANAGER = 'MANAGER',
-  WAREHOUSE = 'WAREHOUSE'
+  WAREHOUSE = 'WAREHOUSE',
+  SELLER = 'SELLER',
+  SUPPLIER = 'SUPPLIER'
 }
 
 export enum InventoryType {
@@ -24,26 +26,40 @@ export interface Product {
   rfidTag?: string;
 }
 
-export interface InventorySession {
-  id: string;
-  type: InventoryType;
-  startTime: string;
-  status: 'OPEN' | 'CLOSED';
-  countedItems: Record<string, number>; // SKU -> Counted
-}
-
 export interface User {
   id: string;
   name: string;
+  email: string;
   role: UserRole;
   avatar: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
+
+export interface Quotation {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  total: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  items: QuotationItem[];
+  createdAt: string;
+}
+
+export interface QuotationItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
 }
 
 export interface Movement {
   id: string;
   productId: string;
-  type: 'IN' | 'OUT';
+  type: 'IN' | 'OUT' | 'ADJUSTMENT';
   quantity: number;
   timestamp: string;
   userId: string;
+  reason?: string;
 }

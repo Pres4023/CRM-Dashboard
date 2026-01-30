@@ -1,17 +1,21 @@
 
 # NEXUS CRM - Production Apache Configuration
 
-# 1. Redirección SPA: Asegura que todas las rutas carguen el index.html
+# 1. Excluir api.php de la redirección SPA
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+    
+    # Si la petición es para api.php, no redirigir
+    RewriteRule ^api\.php$ - [L]
+    
     RewriteRule ^index\.html$ - [L]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule . /index.html [L]
 </IfModule>
 
-# 2. Compresión Gzip: Mejora drásticamente la velocidad de carga
+# 2. Compresión Gzip
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/plain
     AddOutputFilterByType DEFLATE text/html
@@ -22,23 +26,23 @@
     AddOutputFilterByType DEFLATE application/rss+xml
     AddOutputFilterByType DEFLATE application/javascript
     AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
 </IfModule>
 
-# 3. Caché del Navegador: Optimiza la carga recurrente
+# 3. Caché del Navegador
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresDefault "access plus 1 month"
     ExpiresByType text/html "access plus 0 seconds"
     ExpiresByType text/css "access plus 1 week"
     ExpiresByType application/javascript "access plus 1 week"
-    ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresByType application/json "access plus 0 seconds"
 </IfModule>
 
-# 4. Seguridad: Bloquear acceso a archivos sensibles
-<FilesMatch "^\.">
+# 4. Seguridad: Bloquear archivos sensibles pero permitir api.php
+<FilesMatch "^\.env">
     Order allow,deny
     Deny from all
 </FilesMatch>
 
-# Ocultar firmas del servidor
 ServerSignature Off
