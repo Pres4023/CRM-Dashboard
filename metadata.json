@@ -1,0 +1,7 @@
+{
+  "name": "Nexus CRM & Inventory AI",
+  "description": "Professional CRM and inventory management system featuring AI-driven insights, cyclical counts, and advanced barcode/QR/RFID scanning simulation.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
