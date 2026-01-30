@@ -1,12 +1,25 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexus CRM & Inventory AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nexus CRM | AI-Powered Inventory</title>
+  
+  <!-- SEO & Social Meta -->
+  <meta name="description" content="Sistema profesional de gestión de inventarios y CRM con inteligencia artificial avanzada.">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Nexus CRM & Inventory AI">
+  <meta property="og:description" content="Toma de inventarios cíclicos y totales con escaneo de alta precisión.">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
   <style>
     body { font-family: 'Inter', sans-serif; }
     .glass {
@@ -14,7 +27,13 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
+    /* Estilos para el scroll en producción */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   </style>
+
 <script type="importmap">
 {
   "imports": {
@@ -28,7 +47,15 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden">
+<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden antialiased">
   <div id="root" class="h-full"></div>
+  
+  <!-- Preloader de producción -->
+  <noscript>
+    <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+      <h1>Nexus CRM</h1>
+      <p>Necesitas habilitar JavaScript para usar esta aplicación profesional.</p>
+    </div>
+  </noscript>
 </body>
 </html>
